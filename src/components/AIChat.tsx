@@ -42,7 +42,41 @@ const AIChat = () => {
         body: { message: userMessage },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error:", error);
+        
+        // Show user-friendly error messages
+        if (error.message?.includes('503')) {
+          toast.error("AI service is temporarily unavailable. Please try again in a moment.");
+        } else if (error.message?.includes('429')) {
+          toast.error("Too many requests. Please wait a moment and try again.");
+        } else if (error.message?.includes('402')) {
+          toast.error("AI service requires payment. Please contact support.");
+        } else {
+          toast.error("Failed to get AI response. Please try again.");
+        }
+        
+        setMessages((prev) => [
+          ...prev,
+          { 
+            role: "assistant", 
+            content: "I'm having trouble connecting right now. Please try asking your question again in a moment." 
+          },
+        ]);
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        setMessages((prev) => [
+          ...prev,
+          { 
+            role: "assistant", 
+            content: data.error
+          },
+        ]);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -51,6 +85,13 @@ const AIChat = () => {
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to get AI response. Please try again.");
+      setMessages((prev) => [
+        ...prev,
+        { 
+          role: "assistant", 
+          content: "I encountered an error. Please try again." 
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
