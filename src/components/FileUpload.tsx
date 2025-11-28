@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void;
@@ -21,6 +22,24 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     setIsDragging(false);
   };
 
+  const triggerN8nWebhook = async (file: File) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('n8n-webhook', {
+        body: {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          timestamp: new Date().toISOString(),
+        }
+      });
+
+      if (error) throw error;
+      console.log("n8n webhook triggered successfully:", data);
+    } catch (error) {
+      console.error("Error triggering n8n webhook:", error);
+    }
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -29,6 +48,7 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx'))) {
       setSelectedFile(file);
       onFileUpload(file);
+      triggerN8nWebhook(file);
       toast.success("File uploaded successfully!");
     } else {
       toast.error("Please upload a CSV or Excel file");
@@ -40,6 +60,7 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     if (file) {
       setSelectedFile(file);
       onFileUpload(file);
+      triggerN8nWebhook(file);
       toast.success("File uploaded successfully!");
     }
   };
