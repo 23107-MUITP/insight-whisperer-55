@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from "xlsx";
 
 interface FileUploadProps {
   onFileUpload: (file: File) => void;
@@ -22,21 +23,65 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     setIsDragging(false);
   };
 
+  const parseFileData = async (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          let parsedData: any[] = [];
+
+          if (file.name.endsWith('.csv')) {
+            const text = data as string;
+            const workbook = XLSX.read(text, { type: 'string' });
+            const sheetName = workbook.SheetNames[0];
+            parsedData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+          } else if (file.name.endsWith('.xlsx')) {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            parsedData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+          }
+
+          resolve(parsedData);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => reject(reader.error);
+
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  };
+
   const triggerN8nWebhook = async (file: File) => {
     try {
+      toast.info("Analyzing your data...");
+      
+      const parsedData = await parseFileData(file);
+      
       const { data, error } = await supabase.functions.invoke('n8n-webhook', {
         body: {
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
           timestamp: new Date().toISOString(),
+          data: parsedData,
+          rowCount: parsedData.length,
         }
       });
 
       if (error) throw error;
       console.log("n8n webhook triggered successfully:", data);
+      toast.success(`Successfully analyzed ${parsedData.length} rows of data!`);
     } catch (error) {
       console.error("Error triggering n8n webhook:", error);
+      toast.error("Failed to analyze data. Please try again.");
     }
   };
 
