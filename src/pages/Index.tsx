@@ -7,10 +7,12 @@ import AIChat from "@/components/AIChat";
 
 const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileData, setFileData] = useState<any[] | null>(null);
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = (file: File, parsedData: any[]) => {
     setUploadedFile(file);
-    console.log("File uploaded:", file.name);
+    setFileData(parsedData);
+    console.log("File uploaded:", file.name, "Rows:", parsedData.length);
   };
 
   return (
@@ -71,7 +73,7 @@ const Index = () => {
         {/* AI Chat */}
         <section>
           <h2 className="text-2xl font-semibold mb-4">AI Insights</h2>
-          <AIChat />
+          <AIChat fileData={fileData} fileName={uploadedFile?.name} />
         </section>
       </div>
     </div>

@@ -12,7 +12,12 @@ interface Message {
   content: string;
 }
 
-const AIChat = () => {
+interface AIChatProps {
+  fileData?: any[] | null;
+  fileName?: string;
+}
+
+const AIChat = ({ fileData, fileName }: AIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -71,7 +76,11 @@ const AIChat = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: { message: userMessage },
+        body: { 
+          message: userMessage,
+          fileData: fileData,
+          fileName: fileName
+        },
       });
 
       if (error) {
