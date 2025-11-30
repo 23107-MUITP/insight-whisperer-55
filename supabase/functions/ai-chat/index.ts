@@ -8,12 +8,43 @@ const corsHeaders = {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callAIWithRetry(apiKey: string, message: string, maxRetries = 3) {
+async function callAIWithRetry(apiKey: string, message: string, fileData: any[] | null, fileName: string | undefined, maxRetries = 3) {
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`AI API call attempt ${attempt}/${maxRetries}`);
+      
+      let systemPrompt = `You are an expert AI analytics assistant specializing in sales and marketing data analysis. 
+Your role is to help users understand their data, identify trends, and provide actionable recommendations for business growth.
+Be concise, insightful, and focus on practical advice. When discussing data, provide specific examples and suggestions.`;
+
+      if (fileData && fileData.length > 0) {
+        const columns = Object.keys(fileData[0]);
+        const sampleRows = fileData.slice(0, 5);
+        
+        systemPrompt = `You are an expert AI business analyst with direct access to the uploaded data file "${fileName}".
+
+DATA SUMMARY:
+- Total Rows: ${fileData.length}
+- Columns: ${columns.join(", ")}
+
+SAMPLE DATA (first 5 rows):
+${JSON.stringify(sampleRows, null, 2)}
+
+FULL DATASET STRUCTURE:
+${JSON.stringify(fileData, null, 2).substring(0, 5000)}
+
+INSTRUCTIONS:
+- Analyze the actual data values provided above
+- Reference specific numbers, trends, and patterns from the data
+- Provide detailed insights based on the column values
+- Give actionable recommendations for business growth
+- Be specific and data-driven in your analysis
+- When the user asks questions, analyze the entire dataset to provide accurate answers`;
+
+        console.log(`Analyzing file: ${fileName} with ${fileData.length} rows and columns: ${columns.join(", ")}`);
+      }
       
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -26,9 +57,7 @@ async function callAIWithRetry(apiKey: string, message: string, maxRetries = 3) 
           messages: [
             {
               role: 'system',
-              content: `You are an expert AI analytics assistant specializing in sales and marketing data analysis. 
-              Your role is to help users understand their data, identify trends, and provide actionable recommendations for business growth.
-              Be concise, insightful, and focus on practical advice. When discussing data, provide specific examples and suggestions.`
+              content: systemPrompt
             },
             {
               role: 'user',
@@ -84,15 +113,19 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, fileData, fileName } = await req.json();
     console.log("Received message:", message);
+    
+    if (fileData && fileData.length > 0) {
+      console.log(`File data available: ${fileName} with ${fileData.length} rows`);
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const result = await callAIWithRetry(LOVABLE_API_KEY, message);
+    const result = await callAIWithRetry(LOVABLE_API_KEY, message, fileData, fileName);
     
     if (result.error) {
       return new Response(

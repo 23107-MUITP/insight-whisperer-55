@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, parsedData: any[]) => void;
 }
 
 const FileUpload = ({ onFileUpload }: FileUploadProps) => {
@@ -85,14 +85,15 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     
     const file = e.dataTransfer.files[0];
     if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx'))) {
       setSelectedFile(file);
-      onFileUpload(file);
+      const parsedData = await parseFileData(file);
+      onFileUpload(file, parsedData);
       triggerN8nWebhook(file);
       toast.success("File uploaded successfully!");
     } else {
@@ -100,11 +101,12 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      onFileUpload(file);
+      const parsedData = await parseFileData(file);
+      onFileUpload(file, parsedData);
       triggerN8nWebhook(file);
       toast.success("File uploaded successfully!");
     }
