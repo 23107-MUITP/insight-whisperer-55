@@ -31,8 +31,22 @@ serve(async (req) => {
       throw new Error(`n8n webhook error: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("n8n webhook response:", data);
+    // Handle empty or non-JSON responses
+    const responseText = await response.text();
+    let data = null;
+    
+    if (responseText) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("n8n webhook response:", data);
+      } catch (e) {
+        console.log("n8n webhook response (non-JSON):", responseText);
+        data = { message: responseText };
+      }
+    } else {
+      console.log("n8n webhook returned empty response");
+      data = { message: "Webhook triggered successfully" };
+    }
 
     return new Response(
       JSON.stringify({ success: true, data }),
