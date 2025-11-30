@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -21,13 +21,45 @@ const AIChat = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const speechSynthesis = window.speechSynthesis;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    // Cleanup speech synthesis on unmount
+    return () => {
+      speechSynthesis.cancel();
+    };
+  }, []);
+
+  const handlePlayVoice = (content: string, index: number) => {
+    // Stop any currently playing speech
+    if (playingIndex !== null) {
+      speechSynthesis.cancel();
+      setPlayingIndex(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(content);
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => setPlayingIndex(index);
+    utterance.onend = () => setPlayingIndex(null);
+    utterance.onerror = () => {
+      setPlayingIndex(null);
+      toast.error("Failed to play voice");
+    };
+
+    speechSynthesis.speak(utterance);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -120,14 +152,30 @@ const AIChat = () => {
                   <Bot className="h-4 w-4 text-primary" />
                 </div>
               )}
-              <div
-                className={`rounded-lg p-3 max-w-[80%] ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
-              >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              <div className="flex-1 flex flex-col gap-2 max-w-[80%]">
+                <div
+                  className={`rounded-lg p-3 ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                </div>
+                {message.role === "assistant" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => handlePlayVoice(message.content, index)}
+                  >
+                    {playingIndex === index ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                )}
               </div>
               {message.role === "user" && (
                 <div className="p-2 rounded-full bg-primary/10 h-fit">
