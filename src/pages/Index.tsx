@@ -4,15 +4,19 @@ import FileUpload from "@/components/FileUpload";
 import MetricsCard from "@/components/MetricsCard";
 import DataVisualization from "@/components/DataVisualization";
 import AIChat from "@/components/AIChat";
+import WebhookResponse from "@/components/WebhookResponse";
 
 const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileData, setFileData] = useState<any[] | null>(null);
+  const [webhookResponse, setWebhookResponse] = useState<any>(null);
 
-  const handleFileUpload = (file: File, parsedData: any[]) => {
+  const handleFileUpload = (file: File, parsedData: any[], webhookData?: any) => {
     setUploadedFile(file);
     setFileData(parsedData);
+    setWebhookResponse(webhookData);
     console.log("File uploaded:", file.name, "Rows:", parsedData.length);
+    console.log("Webhook response:", webhookData);
   };
 
   return (
@@ -63,6 +67,14 @@ const Index = () => {
             />
           </div>
         </section>
+
+        {/* Webhook Response */}
+        {webhookResponse && (
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">Automation Results</h2>
+            <WebhookResponse response={webhookResponse} />
+          </section>
+        )}
 
         {/* Data Visualizations */}
         <section>
