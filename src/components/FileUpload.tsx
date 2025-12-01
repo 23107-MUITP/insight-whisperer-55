@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 
 interface FileUploadProps {
-  onFileUpload: (file: File, parsedData: any[]) => void;
+  onFileUpload: (file: File, parsedData: any[], webhookResponse?: any) => void;
 }
 
 const FileUpload = ({ onFileUpload }: FileUploadProps) => {
@@ -59,11 +59,9 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     });
   };
 
-  const triggerN8nWebhook = async (file: File) => {
+  const triggerN8nWebhook = async (file: File, parsedData: any[]) => {
     try {
       toast.info("Analyzing your data...");
-      
-      const parsedData = await parseFileData(file);
       
       const { data, error } = await supabase.functions.invoke('n8n-webhook', {
         body: {
@@ -79,9 +77,11 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
       if (error) throw error;
       console.log("n8n webhook triggered successfully:", data);
       toast.success(`Successfully analyzed ${parsedData.length} rows of data!`);
+      return data;
     } catch (error) {
       console.error("Error triggering n8n webhook:", error);
       toast.error("Failed to analyze data. Please try again.");
+      return null;
     }
   };
 
@@ -93,8 +93,8 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx'))) {
       setSelectedFile(file);
       const parsedData = await parseFileData(file);
-      onFileUpload(file, parsedData);
-      triggerN8nWebhook(file);
+      const webhookResponse = await triggerN8nWebhook(file, parsedData);
+      onFileUpload(file, parsedData, webhookResponse);
       toast.success("File uploaded successfully!");
     } else {
       toast.error("Please upload a CSV or Excel file");
@@ -106,8 +106,8 @@ const FileUpload = ({ onFileUpload }: FileUploadProps) => {
     if (file) {
       setSelectedFile(file);
       const parsedData = await parseFileData(file);
-      onFileUpload(file, parsedData);
-      triggerN8nWebhook(file);
+      const webhookResponse = await triggerN8nWebhook(file, parsedData);
+      onFileUpload(file, parsedData, webhookResponse);
       toast.success("File uploaded successfully!");
     }
   };
