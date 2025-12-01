@@ -5,6 +5,7 @@ import MetricsCard from "@/components/MetricsCard";
 import DataVisualization from "@/components/DataVisualization";
 import AIChat from "@/components/AIChat";
 import WebhookResponse from "@/components/WebhookResponse";
+import InsightsPanel from "@/components/InsightsPanel";
 
 const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -25,11 +26,20 @@ const Index = () => {
         {/* Header */}
         <header className="space-y-2">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            AI Analytics Platform
+            AI Business Intelligence Platform
           </h1>
           <p className="text-muted-foreground text-lg">
-            Transform your sales and marketing data into actionable insights with AI-powered analytics
+            Your conversational AI analyst for sales, marketing, and operational insights
           </p>
+          <div className="flex gap-2 text-xs text-muted-foreground">
+            <span>📊 Dynamic Dashboards</span>
+            <span>•</span>
+            <span>🤖 AI-Powered Insights</span>
+            <span>•</span>
+            <span>🎯 Strategic Recommendations</span>
+            <span>•</span>
+            <span>🔊 Voice Interface</span>
+          </div>
         </header>
 
         {/* File Upload */}
@@ -76,6 +86,14 @@ const Index = () => {
           </section>
         )}
 
+        {/* AI-Powered Insights */}
+        {fileData && (
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">AI-Powered Insights</h2>
+            <InsightsPanel fileData={fileData} />
+          </section>
+        )}
+
         {/* Data Visualizations */}
         <section>
           <h2 className="text-2xl font-semibold mb-4">Analytics Dashboard</h2>
@@ -84,8 +102,21 @@ const Index = () => {
 
         {/* AI Chat */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">AI Insights</h2>
-          <AIChat fileData={fileData} fileName={uploadedFile?.name} />
+          <h2 className="text-2xl font-semibold mb-4">Ask AI Business Analyst</h2>
+          <div className="space-y-3">
+            {fileData && (
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm font-medium mb-2">💡 Try asking:</p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• "Show me the top-selling categories"</li>
+                  <li>• "Why did sales drop in Q2?"</li>
+                  <li>• "Which regions performed best?"</li>
+                  <li>• "What strategies can improve underperforming products?"</li>
+                </ul>
+              </div>
+            )}
+            <AIChat fileData={fileData} fileName={uploadedFile?.name} />
+          </div>
         </section>
       </div>
     </div>
