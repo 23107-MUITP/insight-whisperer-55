@@ -43,13 +43,14 @@ interface Message {
 interface AIChatProps {
   fileData?: any[] | null;
   fileName?: string;
+  onFilteredDataChange?: (filteredData: any[] | null, filterContext: string | null) => void;
 }
 
-const AIChat = ({ fileData, fileName }: AIChatProps) => {
+const AIChat = ({ fileData, fileName, onFilteredDataChange }: AIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hello! I'm your AI analytics assistant. Ask me anything about your sales and marketing data, and I'll provide insights and recommendations.",
+      content: "Hello! I'm your AI analytics assistant. Ask me anything about your sales and marketing data, and I'll provide insights and recommendations. The dashboard will update based on your queries!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -138,6 +139,137 @@ const AIChat = ({ fileData, fileName }: AIChatProps) => {
     speechSynthesis.speak(utterance);
   };
 
+  // Extract filter context from user query
+  const extractFilterContext = (query: string): { filterType: string; filterValue: string } | null => {
+    const lowerQuery = query.toLowerCase();
+    
+    // Region filters
+    const regionKeywords = ['west', 'east', 'north', 'south', 'central', 'northeast', 'northwest', 'southeast', 'southwest'];
+    for (const region of regionKeywords) {
+      if (lowerQuery.includes(region)) {
+        return { filterType: 'region', filterValue: region };
+      }
+    }
+    
+    // Category filters
+    if (lowerQuery.includes('category') || lowerQuery.includes('categories')) {
+      const categoryMatch = lowerQuery.match(/(?:category|categories)\s+(?:like\s+)?["']?(\w+)["']?/i);
+      if (categoryMatch) {
+        return { filterType: 'category', filterValue: categoryMatch[1] };
+      }
+    }
+    
+    // Product filters
+    if (lowerQuery.includes('product')) {
+      const productMatch = lowerQuery.match(/product\s+(?:like\s+)?["']?(\w+)["']?/i);
+      if (productMatch) {
+        return { filterType: 'product', filterValue: productMatch[1] };
+      }
+    }
+
+    // Top performing
+    if (lowerQuery.includes('top') && (lowerQuery.includes('selling') || lowerQuery.includes('performing'))) {
+      return { filterType: 'top', filterValue: 'performance' };
+    }
+
+    // Time period filters
+    const quarterMatch = lowerQuery.match(/q([1-4])/i);
+    if (quarterMatch) {
+      return { filterType: 'quarter', filterValue: quarterMatch[1] };
+    }
+
+    return null;
+  };
+
+  // Filter data based on context
+  const filterDataByContext = (data: any[], filterContext: { filterType: string; filterValue: string }): any[] => {
+    if (!data || data.length === 0) return data;
+    
+    const columns = Object.keys(data[0]);
+    
+    switch (filterContext.filterType) {
+      case 'region': {
+        const regionCol = columns.find(col => 
+          col.toLowerCase().includes('region') || 
+          col.toLowerCase().includes('area') || 
+          col.toLowerCase().includes('territory') ||
+          col.toLowerCase().includes('zone') ||
+          col.toLowerCase().includes('location')
+        );
+        if (regionCol) {
+          return data.filter(row => 
+            String(row[regionCol]).toLowerCase().includes(filterContext.filterValue.toLowerCase())
+          );
+        }
+        break;
+      }
+      case 'category': {
+        const categoryCol = columns.find(col => 
+          col.toLowerCase().includes('category') || 
+          col.toLowerCase().includes('type') ||
+          col.toLowerCase().includes('segment')
+        );
+        if (categoryCol) {
+          return data.filter(row => 
+            String(row[categoryCol]).toLowerCase().includes(filterContext.filterValue.toLowerCase())
+          );
+        }
+        break;
+      }
+      case 'product': {
+        const productCol = columns.find(col => 
+          col.toLowerCase().includes('product') || 
+          col.toLowerCase().includes('item') ||
+          col.toLowerCase().includes('name')
+        );
+        if (productCol) {
+          return data.filter(row => 
+            String(row[productCol]).toLowerCase().includes(filterContext.filterValue.toLowerCase())
+          );
+        }
+        break;
+      }
+      case 'quarter': {
+        const dateCol = columns.find(col => 
+          col.toLowerCase().includes('date') || 
+          col.toLowerCase().includes('quarter') ||
+          col.toLowerCase().includes('period')
+        );
+        if (dateCol) {
+          const quarterNum = parseInt(filterContext.filterValue);
+          return data.filter(row => {
+            const dateValue = row[dateCol];
+            if (String(dateValue).toLowerCase().includes(`q${quarterNum}`)) return true;
+            // Try parsing as date
+            const date = new Date(dateValue);
+            if (!isNaN(date.getTime())) {
+              const month = date.getMonth();
+              const rowQuarter = Math.floor(month / 3) + 1;
+              return rowQuarter === quarterNum;
+            }
+            return false;
+          });
+        }
+        break;
+      }
+      case 'top': {
+        // Sort by first numeric column and take top entries
+        const numericCol = columns.find(col => {
+          const val = data[0][col];
+          return typeof val === 'number' || !isNaN(parseFloat(val));
+        });
+        if (numericCol) {
+          return [...data]
+            .sort((a, b) => parseFloat(b[numericCol]) - parseFloat(a[numericCol]))
+            .slice(0, 10);
+        }
+        break;
+      }
+    }
+    
+    return data;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -145,6 +277,18 @@ const AIChat = ({ fileData, fileName }: AIChatProps) => {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
+
+    // Extract filter context and filter data
+    const filterContext = extractFilterContext(userMessage);
+    if (filterContext && fileData && onFilteredDataChange) {
+      const filteredData = filterDataByContext(fileData, filterContext);
+      const contextLabel = `${filterContext.filterType}: ${filterContext.filterValue}`;
+      onFilteredDataChange(filteredData.length > 0 ? filteredData : null, contextLabel);
+      toast.success(`Dashboard updated for ${filterContext.filterValue}`);
+    } else if (onFilteredDataChange && !filterContext) {
+      // Reset to full data if no specific filter
+      onFilteredDataChange(null, null);
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke("ai-chat", {
@@ -216,6 +360,11 @@ const AIChat = ({ fileData, fileName }: AIChatProps) => {
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5 text-primary" />
           <h3 className="font-semibold">AI Assistant</h3>
+          {fileData && (
+            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full ml-auto">
+              Dashboard synced
+            </span>
+          )}
         </div>
       </div>
 
@@ -271,7 +420,7 @@ const AIChat = ({ fileData, fileName }: AIChatProps) => {
                 <Bot className="h-4 w-4 text-primary animate-pulse" />
               </div>
               <div className="bg-muted rounded-lg p-3">
-                <p className="text-sm">Thinking...</p>
+                <p className="text-sm">Analyzing & updating dashboard...</p>
               </div>
             </div>
           )}
@@ -299,7 +448,7 @@ const AIChat = ({ fileData, fileName }: AIChatProps) => {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question or click mic to speak..."
+            placeholder="Ask about regions, trends... (dashboard will update)"
             disabled={isLoading}
             className="flex-1"
           />

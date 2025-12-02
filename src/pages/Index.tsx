@@ -11,13 +11,22 @@ const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [fileData, setFileData] = useState<any[] | null>(null);
   const [webhookResponse, setWebhookResponse] = useState<any>(null);
+  const [filteredData, setFilteredData] = useState<any[] | null>(null);
+  const [filterContext, setFilterContext] = useState<string | null>(null);
 
   const handleFileUpload = (file: File, parsedData: any[], webhookData?: any) => {
     setUploadedFile(file);
     setFileData(parsedData);
     setWebhookResponse(webhookData);
+    setFilteredData(null);
+    setFilterContext(null);
     console.log("File uploaded:", file.name, "Rows:", parsedData.length);
     console.log("Webhook response:", webhookData);
+  };
+
+  const handleFilteredDataChange = (newFilteredData: any[] | null, newFilterContext: string | null) => {
+    setFilteredData(newFilteredData);
+    setFilterContext(newFilterContext);
   };
 
   return (
@@ -90,14 +99,18 @@ const Index = () => {
         {fileData && (
           <section>
             <h2 className="text-2xl font-semibold mb-4">AI-Powered Insights</h2>
-            <InsightsPanel fileData={fileData} />
+            <InsightsPanel fileData={filteredData || fileData} />
           </section>
         )}
 
         {/* Data Visualizations */}
         <section>
           <h2 className="text-2xl font-semibold mb-4">Analytics Dashboard</h2>
-          <DataVisualization fileData={fileData} />
+          <DataVisualization 
+            fileData={fileData} 
+            filteredData={filteredData}
+            filterContext={filterContext}
+          />
         </section>
 
         {/* AI Chat */}
@@ -106,16 +119,20 @@ const Index = () => {
           <div className="space-y-3">
             {fileData && (
               <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-sm font-medium mb-2">💡 Try asking:</p>
+                <p className="text-sm font-medium mb-2">💡 Try asking (dashboard will update):</p>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• "Show me the top-selling categories"</li>
-                  <li>• "Why did sales drop in Q2?"</li>
-                  <li>• "Which regions performed best?"</li>
-                  <li>• "What strategies can improve underperforming products?"</li>
+                  <li>• "Show me analytics for West region"</li>
+                  <li>• "What are the top-selling categories?"</li>
+                  <li>• "Analyze Q2 performance"</li>
+                  <li>• "Compare South region performance"</li>
                 </ul>
               </div>
             )}
-            <AIChat fileData={fileData} fileName={uploadedFile?.name} />
+            <AIChat 
+              fileData={fileData} 
+              fileName={uploadedFile?.name}
+              onFilteredDataChange={handleFilteredDataChange}
+            />
           </div>
         </section>
       </div>
