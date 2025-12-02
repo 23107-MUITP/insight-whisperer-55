@@ -24,6 +24,15 @@ Your core capabilities:
 4. PREDICTIVE INSIGHTS: Suggest strategies to improve underperforming areas
 5. CONVERSATIONAL: Respond naturally to management queries with clarity and precision
 
+REGIONAL ANALYSIS EXPERTISE:
+When asked about specific regions (West, South, East, North, Central, etc.):
+- Filter the data to show ONLY that region's performance
+- Calculate total sales, revenue, units sold for that specific region
+- Compare the region against overall averages
+- Identify top products/categories within that region
+- Highlight growth trends specific to that region
+- Provide region-specific recommendations
+
 When analyzing data:
 - Identify top-performing categories, products, or regions
 - Detect sales drops or increases and explain potential causes
@@ -32,37 +41,65 @@ When analyzing data:
 - Present insights in a clear, executive-friendly manner
 
 Always structure responses with:
-- Clear answer to the question
-- Supporting data points and metrics
-- Visual trends or patterns observed
-- Actionable recommendations`;
+- Clear answer to the question with specific numbers
+- Supporting data points and metrics (percentages, totals, averages)
+- Comparison to other regions or overall performance
+- Actionable recommendations for improvement`;
 
       if (fileData && fileData.length > 0) {
         const columns = Object.keys(fileData[0]);
         const sampleRows = fileData.slice(0, 5);
         
+        // Identify region column
+        const regionColumn = columns.find(col => 
+          col.toLowerCase().includes('region') || 
+          col.toLowerCase().includes('area') || 
+          col.toLowerCase().includes('territory') ||
+          col.toLowerCase().includes('zone') ||
+          col.toLowerCase().includes('location')
+        );
+        
+        // Get unique regions if found
+        let regionInfo = '';
+        if (regionColumn) {
+          const uniqueRegions = [...new Set(fileData.map(row => row[regionColumn]).filter(Boolean))];
+          regionInfo = `\nREGION COLUMN IDENTIFIED: "${regionColumn}"\nAVAILABLE REGIONS: ${uniqueRegions.join(', ')}`;
+        }
+        
+        // Identify numeric columns for calculations
+        const numericColumns = columns.filter(col => {
+          const sampleValue = fileData.find(row => row[col] !== null && row[col] !== undefined)?.[col];
+          return typeof sampleValue === 'number' || !isNaN(parseFloat(sampleValue));
+        });
+        
         systemPrompt += `\n\nCURRENT DATASET LOADED:
 File: ${fileName || 'uploaded file'}
 Total Records: ${fileData.length}
 Columns: ${columns.join(', ')}
+Numeric Columns (for calculations): ${numericColumns.join(', ')}${regionInfo}
 
 Sample Data (first 5 rows):
 ${JSON.stringify(sampleRows, null, 2)}
 
-FULL DATASET:
-${JSON.stringify(fileData, null, 2).substring(0, 5000)}
+FULL DATASET FOR ANALYSIS:
+${JSON.stringify(fileData, null, 2).substring(0, 8000)}
+
+IMPORTANT ANALYSIS INSTRUCTIONS:
+- When asked about a specific region (e.g., "West", "South"), filter the data and provide metrics ONLY for that region
+- Calculate totals, averages, and percentages for the requested region
+- Compare region performance to overall dataset averages
+- Identify the top products/categories in that region
+- Provide specific numbers (e.g., "West region total sales: $X, which is Y% of total")
+- If no exact match, find partial matches (e.g., "Western" for "West")
 
 Use this data to answer user questions about:
-- Sales performance and trends
-- Top-performing categories/products/regions
-- Period-over-period comparisons
-- Anomalies or unusual patterns
-- Strategic recommendations for growth
-- Inventory insights
-- Marketing performance
-- Supply chain metrics
-
-Be specific and reference actual data points in your responses.`;
+- Regional sales performance and comparisons
+- Top-performing categories/products per region
+- Period-over-period comparisons by region
+- Anomalies or unusual patterns in specific regions
+- Strategic recommendations for regional growth
+- Inventory insights by location
+- Marketing performance by territory`;
 
         console.log(`Analyzing file: ${fileName} with ${fileData.length} rows and columns: ${columns.join(", ")}`);
       }
